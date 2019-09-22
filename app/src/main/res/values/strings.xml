@@ -2,5 +2,8 @@
     <string name="app_name">Swapify</string>
 
     <string name="reshuffle_button">Re-Swapify!</string>
-    <string name="match_count_label">Matches Found</string>
+    <string name="match_count_label">matches</string>
+
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
 </resources>

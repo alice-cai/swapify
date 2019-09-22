@@ -1,7 +1,5 @@
 package com.alice.android.swapify;
 
-import android.annotation.SuppressLint;
-
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
@@ -10,7 +8,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
-import android.view.MotionEvent;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
@@ -18,96 +15,53 @@ import android.widget.TextView;
 
 import com.squareup.picasso.Picasso;
 
-/**
- * An example full-screen activity that shows and hides the system UI (i.e.
- * status bar and navigation/system bar) with user interaction.
- */
 public class MainActivity extends AppCompatActivity {
-    /**
-     * Whether or not the system UI should be auto-hidden after
-     * {@link #AUTO_HIDE_DELAY_MILLIS} milliseconds.
-     */
-    private static final boolean AUTO_HIDE = true;
-
-    /**
-     * If {@link #AUTO_HIDE} is set, the number of milliseconds to wait after
-     * user interaction before hiding the system UI.
-     */
-    private static final int AUTO_HIDE_DELAY_MILLIS = 3000;
-
     /**
      * Some older devices needs a small delay between UI widget updates
      * and a change of the status and navigation bar.
      */
     private static final int UI_ANIMATION_DELAY = 300;
+
     private final Handler mHideHandler = new Handler();
-    private View mContentView;
-    private final Runnable mHidePart2Runnable = new Runnable() {
-        @SuppressLint("InlinedApi")
-        @Override
-        public void run() {
-            // Delayed removal of status and navigation bar
+    private final Runnable mHidePart2Runnable = () -> { };
+    private final Runnable mShowPart2Runnable = () -> {
+        ActionBar actionBar = getSupportActionBar();
+        if (actionBar != null) {
+            actionBar.show();
+        }
+    };
+    private final Runnable mHideRunnable = () -> hide();
 
-            // Note that some of these constants are new as of API 16 (Jelly Bean)
-            // and API 19 (KitKat). It is safe to use them, as they are inlined
-            // at compile-time and do nothing on earlier devices.
-//            mContentView.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LOW_PROFILE
-//                    | View.SYSTEM_UI_FLAG_FULLSCREEN
-//                    | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-//                    | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-//                    | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-//                    | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION);
-        }
-    };
-    //private View mControlsView;
-    private final Runnable mShowPart2Runnable = new Runnable() {
-        @Override
-        public void run() {
-            // Delayed display of UI elements
-            ActionBar actionBar = getSupportActionBar();
-            if (actionBar != null) {
-                actionBar.show();
-            }
-            //mControlsView.setVisibility(View.VISIBLE);
-        }
-    };
-    private boolean mVisible;
-    private final Runnable mHideRunnable = new Runnable() {
-        @Override
-        public void run() {
-            hide();
-        }
-    };
-    /**
-     * Touch listener to use for in-layout UI controls to delay hiding the
-     * system UI. This is to prevent the jarring behavior of controls going away
-     * while interacting with activity UI.
-     */
-    private final View.OnTouchListener mDelayHideTouchListener = new View.OnTouchListener() {
-        @Override
-        public boolean onTouch(View view, MotionEvent motionEvent) {
-            if (AUTO_HIDE) {
-                delayedHide(AUTO_HIDE_DELAY_MILLIS);
-            }
-            return false;
-        }
-    };
 
-    // TODO: move these global declarations
+    // Global constants and variables for gameplay.
     public static final int NUM_ROWS = 5;
     public static final int NUM_COLS = 4;
-    private ImageView[] imageViews = new ImageView[NUM_ROWS*NUM_COLS];
-    private ImageCard[] imageCards = new ImageCard[NUM_ROWS*NUM_COLS];
 
-    private ImageCard firstSelection;
+    private TaskDelegateForShopifyRequest taskDelegate = new TaskDelegateForShopifyRequest();
+
+    private ImageView[] imageViews = new ImageView[NUM_ROWS*NUM_COLS];
+    private SwapifyTile[] swapifyTiles = new SwapifyTile[NUM_ROWS*NUM_COLS];
+    private SwapifyTile firstSelection;
 
     private String matchCountLabel;
     private int matchCount = 0;
     private TextView mMatchCountTextView;
 
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        delayedHideActionBar(0);
+        showLoadingSplashScreen(true);
+
+        // Start fetching Shopify images.
+        new ShopifyImageFetcher(taskDelegate).execute();
+    }
+
     private void initializeImageViews() {
         String[] imageViewIds = new String[NUM_ROWS*NUM_COLS];
 
+        // Initialize imageViewIds with the resource IDs of every Swapify image tile.
         int index = 0;
         for (int i = 0; i < NUM_ROWS; i++) {
             for (int j = 0; j < NUM_COLS; j++) {
@@ -116,14 +70,17 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
+        // For each image tile, add a listener to handle game logic.
         for (int i = 0; i < (NUM_ROWS*NUM_COLS); i++) {
             int resID = getResources().getIdentifier(imageViewIds[i], "id", getPackageName());
             ImageView imageView = findViewById(resID);
 
             View.OnClickListener cardFlipListener = v -> {
                 if (imageView.equals(v)) {
-                    ImageCard thisSelection = null;
-                    for (ImageCard imageCard: imageCards) {
+                    SwapifyTile thisSelection = null;
+
+                    // Find the SwapifyTile object that the selected ImageView represents.
+                    for (SwapifyTile imageCard: swapifyTiles) {
                         if (imageCard.getImageView().equals(imageView)) {
                             thisSelection = imageCard;
                             break;
@@ -135,73 +92,89 @@ public class MainActivity extends AppCompatActivity {
                         return;
                     }
 
-                    if (firstSelection  == null) {
-                        flipFaceDown(thisSelection); // TODO: reverse
-                        firstSelection = thisSelection;
-                        return;
-                    } else if (firstSelection.equals(thisSelection)) {
-                        flipFaceUp(thisSelection); // TODO: reverse
-                    } else if (firstSelection.getCardId() == thisSelection.getCardId()) {
-                        flipFaceDown(thisSelection); // TODO: reverse
-                        removeCardsAfterDelay(firstSelection, thisSelection);
-                        matchCount++;
-                        mMatchCountTextView.setText(String.format("%s: %d", matchCountLabel, matchCount));
-                    } else {
-                        flipFaceDown(thisSelection); // TODO: reverse
-                        reflipCardsAfterDelay(firstSelection, thisSelection);
-                    }
-                    firstSelection = null;
+                    handleTileSelection(thisSelection);
                 }
             };
             imageView.setOnClickListener(cardFlipListener);
-            imageView.setVisibility(View.GONE);
 
             imageViews[i] = imageView;
-            imageCards[i] = new ImageCard();
+            swapifyTiles[i] = new SwapifyTile();
         }
     }
 
-    private void flipFaceUp(ImageCard card) {
-        Picasso.get()
-                .load(card.getImageSource())
-                .resize(200, 200)
-                .centerCrop()
-                .into(card.getImageView());
+
+    // Handles matching logic for the selected tile and updates the UI accordingly.
+    private void handleTileSelection(SwapifyTile thisSelection) {
+        if (firstSelection  == null) {
+            TileAnimationUtil.flipFaceDown(thisSelection); // TODO: reverse
+            firstSelection = thisSelection;
+            return;
+        } else if (firstSelection.equals(thisSelection)) {
+            TileAnimationUtil.flipFaceUp(thisSelection); // TODO: reverse
+        } else if (firstSelection.getCardId() == thisSelection.getCardId()) {
+            TileAnimationUtil.flipFaceDown(thisSelection); // TODO: reverse
+            matchCount++;
+            TileAnimationUtil.removeCardsAfterDelay(firstSelection, thisSelection);
+            new Handler().postDelayed(() -> {
+                mMatchCountTextView.setText(String.format("%s: %d", matchCountLabel, matchCount));
+            }, 500);
+        } else {
+            TileAnimationUtil.flipFaceDown(thisSelection); // TODO: reverse
+            TileAnimationUtil.reflipCardsAfterDelay(firstSelection, thisSelection);
+        }
+        firstSelection = null;
     }
 
-    private void flipFaceDown(ImageCard card) {
-        Picasso.get()
-                .load(R.drawable.shopify_cardback)
-                .resize(200, 200)
-                .centerCrop()
-                .into(card.getImageView());
+    private void showLoadingSplashScreen(boolean firstShuffle) {
+        setContentView(R.layout.activity_loading_spash_screen);
+
+        // Set the accent colour for the indeterminate loading bar
+        ProgressBar loadingProgress = findViewById(R.id.loading_progress);
+        loadingProgress.getIndeterminateDrawable().setColorFilter(
+                getResources().getColor(R.color.colorPrimary),
+                android.graphics.PorterDuff.Mode.SRC_IN);
+
+        if (!firstShuffle) {
+            ImageView shopifyLogoImageView = findViewById(R.id.loading_screen_img);
+            shopifyLogoImageView.setImageResource(R.drawable.re_swapify);
+
+            // change image size to scale for re-swapify logo
+            shopifyLogoImageView.getLayoutParams().height = 670;
+            shopifyLogoImageView.requestLayout();
+        }
     }
 
-    private void removeCardsAfterDelay(ImageCard card1, ImageCard card2) {
-        new Handler().postDelayed(() -> {
-            card1.getImageView().setVisibility(View.INVISIBLE);
-            card2.getImageView().setVisibility(View.INVISIBLE);
-        }, 500);
-    }
+    private void initializeGameScreen() {
+        setContentView(R.layout.activity_main);
 
-    private void reflipCardsAfterDelay(ImageCard card1, ImageCard card2) {
-        new Handler().postDelayed(() -> {
-            flipFaceUp(card1); // TODO: reverse
-            flipFaceUp(card2); // TODO: reverse
-        }, 500);
+        // Reset match count and update UI.
+        matchCount = 0;
+        mMatchCountTextView = findViewById(R.id.match_count);
+        matchCountLabel = getResources().getString(R.string.match_count_label);
+        mMatchCountTextView.setText(String.format("%s: %d", matchCountLabel, matchCount));
+
+        // Set listener for the reshuffling button.
+        ImageView reshuffleButton = findViewById(R.id.reshuffle_button);
+        View.OnClickListener reshuffleListener = v -> {
+            showLoadingSplashScreen(false);
+            new ShopifyImageFetcher(taskDelegate).execute();
+        };
+        reshuffleButton.setOnClickListener(reshuffleListener);
+
+        initializeImageViews();
     }
 
     private void shuffleImageCards() {
         // implement the Fisher–Yates shuffling algorithm
-        for (int i = 0; i < imageCards.length - 1; i++) {
-            int randomIndex = (int) (Math.random() * (imageCards.length - i) + i);
+        for (int i = 0; i < swapifyTiles.length - 1; i++) {
+            int randomIndex = (int) (Math.random() * (swapifyTiles.length - i) + i);
 
             if (randomIndex == i) continue;
 
-            // Swap the current ImageCard with the one at the randomly generated index.
-            ImageCard temp = imageCards[i];
-            imageCards[i] = imageCards[randomIndex];
-            imageCards[randomIndex] = temp;
+            // Swap the current SwapifyTile with the one at the randomly generated index.
+            SwapifyTile temp = swapifyTiles[i];
+            swapifyTiles[i] = swapifyTiles[randomIndex];
+            swapifyTiles[randomIndex] = temp;
 
             Log.d("SHUFFLER", "swapping " + i + " and " + randomIndex);
         }
@@ -213,133 +186,70 @@ public class MainActivity extends AppCompatActivity {
             ImageView imageView = imageViews[i];
             Picasso.get()
                     // offset
-                    .load(imageCards[i].getImageSource())
+                    .load(swapifyTiles[i].getImageSource())
                     .resize(200, 200)
                     .centerCrop()
                     .into(imageView);
-            imageView.setVisibility(View.VISIBLE);
-            imageCards[i].setImageView(imageView);
+            swapifyTiles[i].setImageView(imageView);
         }
     }
 
-
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-
-        setContentView(R.layout.activity_fullscreen);
-        mVisible = true;
-
-        initializeImageViews();
-
-        mMatchCountTextView = findViewById(R.id.match_count);
-        matchCountLabel = getResources().getString(R.string.match_count_label);
-        mMatchCountTextView.setText(String.format("%s: %d", matchCountLabel, matchCount));
-
-        ImageView shopifyLogoImageView = findViewById(R.id.shopify_logo);
-        ProgressBar loadingProgress = findViewById(R.id.indeterminateBar);
-
-        // Set the accent colour for the indeterminate loading bar
-        loadingProgress.getIndeterminateDrawable().setColorFilter(
-                getResources().getColor(R.color.colorPrimary),
-                android.graphics.PorterDuff.Mode.SRC_IN);
-
-        Runnable runnable = () -> {
-            loadingProgress.setVisibility(View.GONE);
-            shopifyLogoImageView.setVisibility(View.GONE);
-            findViewById(R.id.swapify_header).setVisibility(View.VISIBLE);
-
-            shuffleImageCards();
-            displayImageCards();
-        };
-
-        TaskDelegateForShopifyRequest taskDelegate = new TaskDelegateForShopifyRequest(runnable);
-        new ShopifyImageFetcher(taskDelegate, loadingProgress).execute();
-
-        View.OnClickListener reshuffleListener = v -> {
-            //loadingProgress.setVisibility(View.VISIBLE);
-            //shopifyLogoImageView.setVisibility(View.VISIBLE);
-            new ShopifyImageFetcher(taskDelegate, loadingProgress).execute();
-        };
-        findViewById(R.id.reshuffle_button).setOnClickListener(reshuffleListener);
+    private void startGame() {
+        shuffleImageCards();
+        displayImageCards();
     }
 
-    @Override
-    protected void onPostCreate(Bundle savedInstanceState) {
-        super.onPostCreate(savedInstanceState);
 
-        // Trigger the initial hide() shortly after the activity has been
-        // created, to briefly hint to the user that UI controls
-        // are available.
-        delayedHide(100);
-    }
 
-    private void toggle() {
-        if (mVisible) {
-            hide();
-        } else {
-            show();
-        }
-    }
-
+    // Hide action bar.
     private void hide() {
         // Hide UI first
         ActionBar actionBar = getSupportActionBar();
         if (actionBar != null) {
             actionBar.hide();
         }
-        //mControlsView.setVisibility(View.GONE);
-        mVisible = false;
 
         // Schedule a runnable to remove the status and navigation bar after a delay
         mHideHandler.removeCallbacks(mShowPart2Runnable);
         mHideHandler.postDelayed(mHidePart2Runnable, UI_ANIMATION_DELAY);
     }
 
-    @SuppressLint("InlinedApi")
-    private void show() {
-        // Show the system bar
-        mContentView.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
-        mVisible = true;
-
-        // Schedule a runnable to display UI elements after a delay
-        mHideHandler.removeCallbacks(mHidePart2Runnable);
-        mHideHandler.postDelayed(mShowPart2Runnable, UI_ANIMATION_DELAY);
-    }
-
     /**
      * Schedules a call to hide() in delay milliseconds, canceling any
      * previously scheduled calls.
      */
-    private void delayedHide(int delayMillis) {
+    private void delayedHideActionBar(int delayMillis) {
         mHideHandler.removeCallbacks(mHideRunnable);
         mHideHandler.postDelayed(mHideRunnable, delayMillis);
     }
 
+    // Task delegate to be notified when the ShopifyImageFetcher task has completed.
     public class TaskDelegateForShopifyRequest implements TaskDelegate {
-        private Runnable callback;
+        //private Runnable callback;
 
-        public TaskDelegateForShopifyRequest(Runnable callback) {
-            this.callback = callback;
-        }
+//        public TaskDelegateForShopifyRequest(Runnable callback) {
+//            this.callback = callback;
+//        }
 
         @RequiresApi(api = Build.VERSION_CODES.N)
         @Override
         public void taskCompletionResult(String[] result) {
-            //String[] imageUrls = new String[NUM_ROWS*NUM_COLS];
+            initializeGameScreen();
+
+            // Initialize the image views and randomly assign a range of 10 images
+            // from the Shopify product list (2 of each image).
             int index = (int) ((Math.random() * 25) + 15);
-
             for (int i = 0; i < (NUM_ROWS*NUM_COLS); i+=2) {
-                imageCards[i].setImageSource(result[index]);
-                imageCards[i+1].setImageSource(result[index]);
+                swapifyTiles[i].setImageSource(result[index]);
+                swapifyTiles[i+1].setImageSource(result[index]);
 
-                imageCards[i].setCardId(i);
-                imageCards[i+1].setCardId(i);
+                swapifyTiles[i].setCardId(i);
+                swapifyTiles[i+1].setCardId(i);
                 index++;
             }
 
-            callback.run();
+            startGame();
+            //callback.run();
         }
     }
 }

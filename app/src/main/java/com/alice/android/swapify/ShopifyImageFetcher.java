@@ -1,11 +1,8 @@
 package com.alice.android.swapify;
 
-import android.content.Context;
-import android.content.Intent;
+
 import android.os.AsyncTask;
 import android.util.Log;
-import android.view.View;
-import android.widget.ProgressBar;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -24,7 +21,7 @@ public class ShopifyImageFetcher extends AsyncTask<String, String, String> {
     private TaskDelegate delegate;
     private static final String shopifyUrl = "https://shopicruit.myshopify.com/admin/products.json?page=1&access_token=c32313df0d0ef512ca64d5b336a0d7c6";
 
-    public ShopifyImageFetcher(TaskDelegate delegate, ProgressBar loadingBar) {
+    public ShopifyImageFetcher(TaskDelegate delegate) {
         super();
         this.delegate = delegate;
     }

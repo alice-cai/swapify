@@ -2,18 +2,18 @@ package com.alice.android.swapify;
 
 import android.widget.ImageView;
 
-public class ImageCard {
+public class SwapifyTile {
     private ImageView imageView;
     private int cardId;
     private String imageSource; // URL
 
-    public ImageCard() {
+    public SwapifyTile() {
         this.imageView = null;
         this.cardId = -1;
         this.imageSource = "";
     }
 
-    public ImageCard(ImageView imageView, int cardId, String imageSource) {
+    public SwapifyTile(ImageView imageView, int cardId, String imageSource) {
         this.imageView = imageView;
         this.cardId = cardId;
         this.imageSource = imageSource;
@@ -43,11 +43,11 @@ public class ImageCard {
         imageSource = newImageSource;
     }
 
-//    public boolean equals(ImageCard other) {
+//    public boolean equals(SwapifyTile other) {
 //        return other.getImageView() == imageView;
 //    }
 
-    public boolean checkMatch(ImageCard other) {
+    public boolean checkMatch(SwapifyTile other) {
         return other.getCardId() == cardId;
     }
 }
