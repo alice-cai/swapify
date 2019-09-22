@@ -95,9 +95,11 @@ public class FullscreenActivity extends AppCompatActivity {
         }
     };
 
+    // TODO: move these global declarations
     public static final int NUM_ROWS = 5;
     public static final int NUM_COLS = 4;
     private ImageView[] imageViews = new ImageView[NUM_ROWS*NUM_COLS];
+    private ImageCard[] imageCards = new ImageCard[NUM_ROWS*NUM_COLS];
 
     private void initializeImageViews() {
         String[] imageViewIds = new String[NUM_ROWS*NUM_COLS];
@@ -117,11 +119,11 @@ public class FullscreenActivity extends AppCompatActivity {
             View.OnClickListener clickListener = new View.OnClickListener() {
                 public void onClick(View v) {
                     if (v.equals(imageView)) {
+                        // Flip the card.
                         Picasso.get()
                                 // TODO: reverse this
                                 .load(R.drawable.shopify_cardback)
                                 .resize(200, 200)
-                                //.fit()
                                 .centerCrop()
                                 .into(imageView);
                     }
@@ -129,7 +131,25 @@ public class FullscreenActivity extends AppCompatActivity {
             };
             imageView.setOnClickListener(clickListener);
             imageView.setVisibility(View.GONE);
-            imageViews[i] = imageView;
+
+            imageViews[i] = imageView;shuffleImageCards();
+            imageCards[i] = new ImageCard();
+        }
+    }
+
+    private void shuffleImageCards() {
+        // implement the Fisher–Yates shuffling algorithm
+        for (int i = 0; i < imageCards.length - 1; i++) {
+            int randomIndex = (int) (Math.random() * (imageCards.length - i) + i);
+
+            if (randomIndex == i) continue;
+
+            // Swap the current ImageCard with the one at the randomly generated index.
+            ImageCard temp = imageCards[i];
+            imageCards[i] = imageCards[randomIndex];
+            imageCards[randomIndex] = temp;
+
+            Log.d("SHUFFLER", "swapping " + i + " and " + randomIndex);
         }
     }
 
@@ -139,80 +159,40 @@ public class FullscreenActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
 
         setContentView(R.layout.activity_fullscreen);
-
         mVisible = true;
-        //mControlsView = findViewById(R.id.fullscreen_content_controls);
-        //mContentView = findViewById(R.id.fullscreen_content);
-
-
-        // Set up the user interaction to manually show or hide the system UI.
-//        mContentView.setOnClickListener(new View.OnClickListener() {
-//            @Override
-//            public void onClick(View view) {
-//                toggle();
-//            }
-//        });
-
-        // Upon interacting with UI controls, delay any scheduled hide()
-        // operations to prevent the jarring behavior of controls going away
-        // while interacting with the UI.
-        //findViewById(R.id.dummy_button).setOnTouchListener(mDelayHideTouchListener);
-
-        // try to get the Shopify stuff
-
-        // callback for the task delegate
 
         initializeImageViews();
 
-        ImageView shopifyLogoImageView = (ImageView) findViewById(R.id.shopify_logo);
-        ProgressBar loadingProgress = (ProgressBar) findViewById(R.id.indeterminateBar);
+        ImageView shopifyLogoImageView = findViewById(R.id.shopify_logo);
+        ProgressBar loadingProgress = findViewById(R.id.indeterminateBar);
 
-        // set the accent colour for the indeterminate loading bar
+        // Set the accent colour for the indeterminate loading bar
         loadingProgress.getIndeterminateDrawable().setColorFilter(
                 getResources().getColor(R.color.colorPrimary),
                 android.graphics.PorterDuff.Mode.SRC_IN);
 
-        Consumer<String[]> consumer = imageUrls -> {
+        Runnable runnable = () -> {
             loadingProgress.setVisibility(View.GONE);
             shopifyLogoImageView.setVisibility(View.GONE);
-
             findViewById(R.id.swapify_header).setVisibility(View.VISIBLE);
 
-            for (int i = 0; i < (NUM_ROWS*NUM_COLS); i++) {
-                //int resID = getResources().getIdentifier(imageViewIds[i], "id", getPackageName());
-                ImageView imageView = imageViews[i];
-//                View.OnClickListener clickListener = new View.OnClickListener() {
-//                    public void onClick(View v) {
-//                        if (v.equals(imageView)) {
-//                            Picasso.get()
-//                                    .load(R.drawable.shopify_logo)
-//                                    .resize(200, 200)
-//                                    .centerCrop()
-//                                    .into(imageView);
-//                        }
-//                    }
-//                };
-//                imageView.setOnClickListener(clickListener);
+            shuffleImageCards();
 
+            // Update the grid of ImageView objects with the shuffled Shopify images.
+            for (int i = 0; i < (NUM_ROWS*NUM_COLS); i++) {
+                ImageView imageView = imageViews[i];
                 Picasso.get()
                         // offset
-                        .load(imageUrls[i + 30])
+                        .load(imageCards[i].getImageSource())
                         .resize(200, 200)
                         .centerCrop()
                         .into(imageView);
                 imageView.setVisibility(View.VISIBLE);
+                imageCards[i].setImageView(imageView);
             }
-
-//            //ImageView imageView = (ImageView) findViewById(R.id.image_0_0);
-//            Log.d("TASK DELEGATE -> CALLBACK", Arrays.toString(imageUrls));
-//            Picasso.get()
-//                    .load("https://cdn.shopify.com/s/files/1/1000/7970/products/Aerodynamic_20Concrete_20Clock.png?v=1443055734")
-//                    .resize(100, 100)
-//                    .centerCrop()
-//                    .into(imageView);
         };
 
-        TaskDelegateForShopifyRequest taskDelegate = new TaskDelegateForShopifyRequest(consumer);
+        TaskDelegateForShopifyRequest taskDelegate = new TaskDelegateForShopifyRequest(runnable);
         new ShopifyProductFetcher(taskDelegate, loadingProgress).execute();
     }
 
@@ -270,16 +250,28 @@ public class FullscreenActivity extends AppCompatActivity {
     }
 
     public class TaskDelegateForShopifyRequest implements TaskDelegate {
-        private Consumer<String[]> callback;
+        private Runnable callback;
 
-        public TaskDelegateForShopifyRequest(Consumer<String[]> callback) {
+        public TaskDelegateForShopifyRequest(Runnable callback) {
             this.callback = callback;
         }
 
         @RequiresApi(api = Build.VERSION_CODES.N)
         @Override
         public void taskCompletionResult(String[] result) {
-            callback.accept(result);
+            //String[] imageUrls = new String[NUM_ROWS*NUM_COLS];
+            int index = (int) ((Math.random() * 25) + 15);
+
+            for (int i = 0; i < (NUM_ROWS*NUM_COLS); i+=2) {
+                imageCards[i].setImageSource(result[index]);
+                imageCards[i+1].setImageSource(result[index]);
+
+                imageCards[i].setCardId(i);
+                imageCards[i+1].setCardId(i);
+                index++;
+            }
+
+            callback.run();
         }
     }
 }
