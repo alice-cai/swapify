@@ -43,7 +43,11 @@ public class ImageCard {
         imageSource = newImageSource;
     }
 
-    public boolean equals(ImageCard other) {
+//    public boolean equals(ImageCard other) {
+//        return other.getImageView() == imageView;
+//    }
+
+    public boolean checkMatch(ImageCard other) {
         return other.getCardId() == cardId;
     }
 }

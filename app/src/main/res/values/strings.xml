@@ -1,6 +1,6 @@
 <resources>
     <string name="app_name">Swapify</string>
 
-    <string name="dummy_button">Dummy Button</string>
-    <string name="dummy_content">DUMMY\nCONTENT</string>
+    <string name="reshuffle_button">Re-Swapify!</string>
+    <string name="match_count_label">Matches Found</string>
 </resources>

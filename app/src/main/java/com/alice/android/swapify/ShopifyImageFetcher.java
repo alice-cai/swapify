@@ -20,11 +20,11 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 
-public class ShopifyProductFetcher extends AsyncTask<String, String, String> {
+public class ShopifyImageFetcher extends AsyncTask<String, String, String> {
     private TaskDelegate delegate;
     private static final String shopifyUrl = "https://shopicruit.myshopify.com/admin/products.json?page=1&access_token=c32313df0d0ef512ca64d5b336a0d7c6";
 
-    public ShopifyProductFetcher(TaskDelegate delegate, ProgressBar loadingBar) {
+    public ShopifyImageFetcher(TaskDelegate delegate, ProgressBar loadingBar) {
         super();
         this.delegate = delegate;
     }

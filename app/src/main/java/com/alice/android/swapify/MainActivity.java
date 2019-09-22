@@ -14,17 +14,15 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
+import android.widget.TextView;
 
 import com.squareup.picasso.Picasso;
-
-import java.util.Arrays;
-import java.util.function.Consumer;
 
 /**
  * An example full-screen activity that shows and hides the system UI (i.e.
  * status bar and navigation/system bar) with user interaction.
  */
-public class FullscreenActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity {
     /**
      * Whether or not the system UI should be auto-hidden after
      * {@link #AUTO_HIDE_DELAY_MILLIS} milliseconds.
@@ -101,6 +99,12 @@ public class FullscreenActivity extends AppCompatActivity {
     private ImageView[] imageViews = new ImageView[NUM_ROWS*NUM_COLS];
     private ImageCard[] imageCards = new ImageCard[NUM_ROWS*NUM_COLS];
 
+    private ImageCard firstSelection;
+
+    private String matchCountLabel;
+    private int matchCount = 0;
+    private TextView mMatchCountTextView;
+
     private void initializeImageViews() {
         String[] imageViewIds = new String[NUM_ROWS*NUM_COLS];
 
@@ -114,27 +118,77 @@ public class FullscreenActivity extends AppCompatActivity {
 
         for (int i = 0; i < (NUM_ROWS*NUM_COLS); i++) {
             int resID = getResources().getIdentifier(imageViewIds[i], "id", getPackageName());
-            ImageView imageView = (ImageView) findViewById(resID);
+            ImageView imageView = findViewById(resID);
 
-            View.OnClickListener clickListener = new View.OnClickListener() {
-                public void onClick(View v) {
-                    if (v.equals(imageView)) {
-                        // Flip the card.
-                        Picasso.get()
-                                // TODO: reverse this
-                                .load(R.drawable.shopify_cardback)
-                                .resize(200, 200)
-                                .centerCrop()
-                                .into(imageView);
+            View.OnClickListener cardFlipListener = v -> {
+                if (imageView.equals(v)) {
+                    ImageCard thisSelection = null;
+                    for (ImageCard imageCard: imageCards) {
+                        if (imageCard.getImageView().equals(imageView)) {
+                            thisSelection = imageCard;
+                            break;
+                        }
                     }
+
+                    if (thisSelection == null) {
+                        Log.d("ERROR", "Unable to match card object. Aborting.");
+                        return;
+                    }
+
+                    if (firstSelection  == null) {
+                        flipFaceDown(thisSelection); // TODO: reverse
+                        firstSelection = thisSelection;
+                        return;
+                    } else if (firstSelection.equals(thisSelection)) {
+                        flipFaceUp(thisSelection); // TODO: reverse
+                    } else if (firstSelection.getCardId() == thisSelection.getCardId()) {
+                        flipFaceDown(thisSelection); // TODO: reverse
+                        removeCardsAfterDelay(firstSelection, thisSelection);
+                        matchCount++;
+                        mMatchCountTextView.setText(String.format("%s: %d", matchCountLabel, matchCount));
+                    } else {
+                        flipFaceDown(thisSelection); // TODO: reverse
+                        reflipCardsAfterDelay(firstSelection, thisSelection);
+                    }
+                    firstSelection = null;
                 }
             };
-            imageView.setOnClickListener(clickListener);
+            imageView.setOnClickListener(cardFlipListener);
             imageView.setVisibility(View.GONE);
 
-            imageViews[i] = imageView;shuffleImageCards();
+            imageViews[i] = imageView;
             imageCards[i] = new ImageCard();
         }
+    }
+
+    private void flipFaceUp(ImageCard card) {
+        Picasso.get()
+                .load(card.getImageSource())
+                .resize(200, 200)
+                .centerCrop()
+                .into(card.getImageView());
+    }
+
+    private void flipFaceDown(ImageCard card) {
+        Picasso.get()
+                .load(R.drawable.shopify_cardback)
+                .resize(200, 200)
+                .centerCrop()
+                .into(card.getImageView());
+    }
+
+    private void removeCardsAfterDelay(ImageCard card1, ImageCard card2) {
+        new Handler().postDelayed(() -> {
+            card1.getImageView().setVisibility(View.INVISIBLE);
+            card2.getImageView().setVisibility(View.INVISIBLE);
+        }, 500);
+    }
+
+    private void reflipCardsAfterDelay(ImageCard card1, ImageCard card2) {
+        new Handler().postDelayed(() -> {
+            flipFaceUp(card1); // TODO: reverse
+            flipFaceUp(card2); // TODO: reverse
+        }, 500);
     }
 
     private void shuffleImageCards() {
@@ -153,6 +207,21 @@ public class FullscreenActivity extends AppCompatActivity {
         }
     }
 
+    private void displayImageCards() {
+        // Update the grid of ImageView objects with the shuffled Shopify images.
+        for (int i = 0; i < (NUM_ROWS*NUM_COLS); i++) {
+            ImageView imageView = imageViews[i];
+            Picasso.get()
+                    // offset
+                    .load(imageCards[i].getImageSource())
+                    .resize(200, 200)
+                    .centerCrop()
+                    .into(imageView);
+            imageView.setVisibility(View.VISIBLE);
+            imageCards[i].setImageView(imageView);
+        }
+    }
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -162,6 +231,10 @@ public class FullscreenActivity extends AppCompatActivity {
         mVisible = true;
 
         initializeImageViews();
+
+        mMatchCountTextView = findViewById(R.id.match_count);
+        matchCountLabel = getResources().getString(R.string.match_count_label);
+        mMatchCountTextView.setText(String.format("%s: %d", matchCountLabel, matchCount));
 
         ImageView shopifyLogoImageView = findViewById(R.id.shopify_logo);
         ProgressBar loadingProgress = findViewById(R.id.indeterminateBar);
@@ -177,23 +250,18 @@ public class FullscreenActivity extends AppCompatActivity {
             findViewById(R.id.swapify_header).setVisibility(View.VISIBLE);
 
             shuffleImageCards();
-
-            // Update the grid of ImageView objects with the shuffled Shopify images.
-            for (int i = 0; i < (NUM_ROWS*NUM_COLS); i++) {
-                ImageView imageView = imageViews[i];
-                Picasso.get()
-                        // offset
-                        .load(imageCards[i].getImageSource())
-                        .resize(200, 200)
-                        .centerCrop()
-                        .into(imageView);
-                imageView.setVisibility(View.VISIBLE);
-                imageCards[i].setImageView(imageView);
-            }
+            displayImageCards();
         };
 
         TaskDelegateForShopifyRequest taskDelegate = new TaskDelegateForShopifyRequest(runnable);
-        new ShopifyProductFetcher(taskDelegate, loadingProgress).execute();
+        new ShopifyImageFetcher(taskDelegate, loadingProgress).execute();
+
+        View.OnClickListener reshuffleListener = v -> {
+            //loadingProgress.setVisibility(View.VISIBLE);
+            //shopifyLogoImageView.setVisibility(View.VISIBLE);
+            new ShopifyImageFetcher(taskDelegate, loadingProgress).execute();
+        };
+        findViewById(R.id.reshuffle_button).setOnClickListener(reshuffleListener);
     }
 
     @Override
