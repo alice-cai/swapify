@@ -251,7 +251,7 @@ public class MainActivity extends AppCompatActivity {
             for (SwapifyTile tile: swapifyTiles) {
                 flipFaceDown(tile);
             }
-        }, 1500);
+        }, 2000);
     }
 
     private void startGame() {

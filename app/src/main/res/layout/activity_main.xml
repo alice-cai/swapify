@@ -6,13 +6,16 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/background"
+    android:gravity="center_vertical"
     tools:context=".MainActivity">
 
     <RelativeLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="match_parent"
         app:layout_anchor="@+id/main_layout"
-        android:gravity="center_vertical"
+        android:gravity="center_vertical|center_horizontal"
+        android:layout_centerVertical="true"
+        android:layout_marginTop="5dp"
         app:layout_anchorGravity="center">
 
         <ImageView
@@ -20,7 +23,6 @@
             android:layout_width="match_parent"
             android:layout_height="80dip"
             android:layout_gravity="fill_horizontal"
-            android:layout_marginTop="5dp"
             android:cropToPadding="true"
             android:padding="2dp"
             android:src="@drawable/swapify_header" />
