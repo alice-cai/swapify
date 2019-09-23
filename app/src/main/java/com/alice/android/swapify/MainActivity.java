@@ -246,9 +246,11 @@ public class MainActivity extends AppCompatActivity {
             swapifyTiles[i].setImageView(imageView);
         }
 
-        // Disable touch events when showing the cards for 2 seconds.
+        // Disable touch events during 2 second preview.
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
                 WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE);
+        ImageView reshuffleButton = findViewById(R.id.reshuffle_button);
+        reshuffleButton.setVisibility(View.INVISIBLE);
 
         // Flip cards face down after delay.
         new Handler().postDelayed(() -> {
@@ -258,6 +260,7 @@ public class MainActivity extends AppCompatActivity {
 
             // Re-enable touch events.
             getWindow().clearFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE);
+            reshuffleButton.setVisibility(View.VISIBLE);
         }, 2000);
     }
 
