@@ -117,8 +117,8 @@ public class MainActivity extends AppCompatActivity {
             firstSelection = thisSelection;
             return;
         } else if (firstSelection.equals(thisSelection)) {
-            // Deselect the selected tile.
-            flipFaceDown(thisSelection);
+            // Do not allow the user to de-select tiles.
+            return;
         } else if (firstSelection.getCardId() == thisSelection.getCardId()) {
             // Match! Remove matched cards.
             flipFaceUp(thisSelection);
@@ -246,11 +246,18 @@ public class MainActivity extends AppCompatActivity {
             swapifyTiles[i].setImageView(imageView);
         }
 
+        // Disable touch events when showing the cards for 2 seconds.
+        getWindow().setFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE);
+
         // Flip cards face down after delay.
         new Handler().postDelayed(() -> {
             for (SwapifyTile tile: swapifyTiles) {
                 flipFaceDown(tile);
             }
+
+            // Re-enable touch events.
+            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE);
         }, 2000);
     }
 
