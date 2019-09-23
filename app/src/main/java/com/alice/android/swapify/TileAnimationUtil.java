@@ -22,17 +22,17 @@ public class TileAnimationUtil {
                 .into(card.getImageView());
     }
 
-    public static void removeCardsAfterDelay(SwapifyTile card1, SwapifyTile card2) {
+    public static void removeTilesAfterDelay(SwapifyTile card1, SwapifyTile card2) {
         new Handler().postDelayed(() -> {
             card1.getImageView().setVisibility(View.INVISIBLE);
             card2.getImageView().setVisibility(View.INVISIBLE);
         }, 500);
     }
 
-    public static void reflipCardsAfterDelay(SwapifyTile card1, SwapifyTile card2) {
+    public static void reflipTilesAfterDelay(SwapifyTile card1, SwapifyTile card2) {
         new Handler().postDelayed(() -> {
-            flipFaceUp(card1); // TODO: reverse
-            flipFaceUp(card2); // TODO: reverse
+            flipFaceDown(card1);
+            flipFaceDown(card2);
         }, 500);
     }
 }

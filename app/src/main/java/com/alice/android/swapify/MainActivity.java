@@ -2,18 +2,24 @@ package com.alice.android.swapify;
 
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.ActionBar;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.content.DialogInterface;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import com.squareup.picasso.Picasso;
+
+import static com.alice.android.swapify.TileAnimationUtil.*;
 
 public class MainActivity extends AppCompatActivity {
     /**
@@ -106,21 +112,59 @@ public class MainActivity extends AppCompatActivity {
     // Handles matching logic for the selected tile and updates the UI accordingly.
     private void handleTileSelection(SwapifyTile thisSelection) {
         if (firstSelection  == null) {
-            TileAnimationUtil.flipFaceDown(thisSelection); // TODO: reverse
+            // This is the first selection.
+            flipFaceUp(thisSelection);
             firstSelection = thisSelection;
             return;
         } else if (firstSelection.equals(thisSelection)) {
-            TileAnimationUtil.flipFaceUp(thisSelection); // TODO: reverse
+            // Deselect the selected tile.
+            flipFaceDown(thisSelection);
         } else if (firstSelection.getCardId() == thisSelection.getCardId()) {
-            TileAnimationUtil.flipFaceDown(thisSelection); // TODO: reverse
+            // Match! Remove matched cards.
+            flipFaceUp(thisSelection);
+
+            // Disable touch events.
+            getWindow().setFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE);
+
             matchCount++;
-            TileAnimationUtil.removeCardsAfterDelay(firstSelection, thisSelection);
+            removeTilesAfterDelay(firstSelection, thisSelection);
+
+            // Update match count and re-enable touch events.
             new Handler().postDelayed(() -> {
                 mMatchCountTextView.setText(String.format("%s: %d", matchCountLabel, matchCount));
+                getWindow().clearFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE);
             }, 500);
+
+            if (matchCount == (NUM_ROWS*NUM_COLS)/2) {
+                LayoutInflater inflater = this.getLayoutInflater();
+                View dialogView = inflater.inflate(R.layout.dialog_win_game, null);
+
+                AlertDialog.Builder builder = new AlertDialog.Builder(this);
+                builder.setView(dialogView).setCancelable(false);
+
+                AlertDialog winnerAlert = builder.create();
+                winnerAlert.show();
+
+                new Handler().postDelayed(() -> {
+                    winnerAlert.dismiss();
+                    resetGame();
+                }, 3000);
+            }
         } else {
-            TileAnimationUtil.flipFaceDown(thisSelection); // TODO: reverse
-            TileAnimationUtil.reflipCardsAfterDelay(firstSelection, thisSelection);
+            // Incorrect pairing. Reflip both cards.
+            flipFaceUp(thisSelection);
+
+            // Disable touch events.
+            getWindow().setFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE);
+
+            reflipTilesAfterDelay(firstSelection, thisSelection);
+
+            // Update match count and re-enable touch events.
+            new Handler().postDelayed(() -> {
+                getWindow().clearFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE);
+            }, 500);
         }
         firstSelection = null;
     }
@@ -144,6 +188,11 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private void resetGame() {
+        showLoadingSplashScreen(false);
+        new ShopifyImageFetcher(taskDelegate).execute();
+    }
+
     private void initializeGameScreen() {
         setContentView(R.layout.activity_main);
 
@@ -156,8 +205,14 @@ public class MainActivity extends AppCompatActivity {
         // Set listener for the reshuffling button.
         ImageView reshuffleButton = findViewById(R.id.reshuffle_button);
         View.OnClickListener reshuffleListener = v -> {
-            showLoadingSplashScreen(false);
-            new ShopifyImageFetcher(taskDelegate).execute();
+            AlertDialog.Builder alertBuilder = new AlertDialog.Builder(this);
+            alertBuilder.setMessage("Do you want to reshuffle? All game progress will be lost.")
+                    .setCancelable(true)
+                    .setPositiveButton("Yes", (DialogInterface dialog, int id) -> resetGame())
+                    .setNegativeButton("No", (DialogInterface dialog, int id) -> dialog.cancel())
+                    .setTitle("Restart Game")
+                    .setIcon(R.drawable.shopify_logo)
+                    .create().show();
         };
         reshuffleButton.setOnClickListener(reshuffleListener);
 
@@ -175,12 +230,10 @@ public class MainActivity extends AppCompatActivity {
             SwapifyTile temp = swapifyTiles[i];
             swapifyTiles[i] = swapifyTiles[randomIndex];
             swapifyTiles[randomIndex] = temp;
-
-            Log.d("SHUFFLER", "swapping " + i + " and " + randomIndex);
         }
     }
 
-    private void displayImageCards() {
+    private void displayImageCardsAndFlip() {
         // Update the grid of ImageView objects with the shuffled Shopify images.
         for (int i = 0; i < (NUM_ROWS*NUM_COLS); i++) {
             ImageView imageView = imageViews[i];
@@ -192,11 +245,18 @@ public class MainActivity extends AppCompatActivity {
                     .into(imageView);
             swapifyTiles[i].setImageView(imageView);
         }
+
+        // Flip cards face down after delay.
+        new Handler().postDelayed(() -> {
+            for (SwapifyTile tile: swapifyTiles) {
+                flipFaceDown(tile);
+            }
+        }, 1500);
     }
 
     private void startGame() {
         shuffleImageCards();
-        displayImageCards();
+        displayImageCardsAndFlip();
     }
 
 

@@ -28,13 +28,7 @@ public class ShopifyImageFetcher extends AsyncTask<String, String, String> {
 
     protected void onPreExecute() {
         super.onPreExecute();
-        //context.startActivity(new Intent(context, LoadingActivity.class));
-        Log.d("update: ","About to start fetching Shopify stuff");
-
-//        pd = new ProgressDialog(MainActivity.this);
-//        pd.setMessage("Please wait");
-//        pd.setCancelable(false);
-//        pd.show();
+        Log.d("ShopifyImageFetcher","About to start fetching Shopify image sources.");
     }
 
     private String fetchJsonData() {
@@ -54,15 +48,15 @@ public class ShopifyImageFetcher extends AsyncTask<String, String, String> {
 
             while ((inputLine = in.readLine()) != null) {
                 buffer.append(inputLine + "\n");
-                Log.d("Response: ", "> " + inputLine);
+                Log.d("Response", inputLine);
             }
 
             return buffer.toString();
         } catch (MalformedURLException e) {
-            Log.d("Error:", "MalformedURLException");
+            Log.d("Error", "MalformedURLException");
             e.printStackTrace();
         } catch (IOException e) {
-            Log.d("Error:", "IOException");
+            Log.d("Error", "IOException");
             e.printStackTrace();
         } finally {
             if (connection != null) {
@@ -73,7 +67,7 @@ public class ShopifyImageFetcher extends AsyncTask<String, String, String> {
                     in.close();
                 }
             } catch (IOException e) {
-                Log.d("Error:", "IOException");
+                Log.d("Error", "IOException");
                 e.printStackTrace();
             }
         }
@@ -88,13 +82,12 @@ public class ShopifyImageFetcher extends AsyncTask<String, String, String> {
     @Override
     protected void onPostExecute(String result) {
         super.onPostExecute(result);
-        Log.d("Finished:", result);
 
         ArrayList<String> imageURLs = new ArrayList<>();
         try {
             JSONObject shopifyJsonResponse = new JSONObject(result);
             JSONArray shopifyProducts = shopifyJsonResponse.getJSONArray("products");
-            Log.d("Products:", shopifyProducts.toString());
+            Log.d("Products Fetched", shopifyProducts.toString());
             for (int i = 0; i < shopifyProducts.length(); i++) {
                 imageURLs.add(shopifyProducts.getJSONObject(i).getJSONObject("image").getString("src"));
             }
@@ -102,7 +95,7 @@ public class ShopifyImageFetcher extends AsyncTask<String, String, String> {
             return;
         } catch (JSONException e) {
             e.printStackTrace();
-            Log.d("Error:", "JSONException; error parsing JSON response");
+            Log.d("Error", "JSONException; error parsing Shopify's JSON response.");
         }
         delegate.taskCompletionResult(null);
     }
